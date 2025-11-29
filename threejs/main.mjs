@@ -4,12 +4,15 @@ import {
   WebGLRenderer,
   BoxGeometry,
   MeshBasicMaterial,
-  Mesh
+  PlaneGeometry,
+  Mesh,
+  Group,
+  Matrix4,
 } from "./lib/three.module.min.js"
 
 import {makeMaterial} from "./shader.mjs"
 
-const m = makeMaterial();
+const material = makeMaterial();
 
 const DEG2RAD = Math.PI/180;
 
@@ -33,12 +36,26 @@ document.body.appendChild(renderer.domElement);
 const scene = new Scene();
 const camera = new PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
+const cg1 = new Group();
+const cg2 = new Group();
+
+cg1.add(cg2);
+cg2.add(camera);
+cg2.rotateX(45*DEG2RAD);
+
+scene.add(cg1);
+
 const geometry = new BoxGeometry( 1, 1, 1 );
-const material = m//new MeshBasicMaterial( { color: 0x00ff00 } );
 const cube = new Mesh( geometry, material );
 scene.add( cube );
 
-camera.position.z = 2;
+cube.translateZ(0.5);
+
+const pg = new PlaneGeometry( 5, 5 );
+const pl = new Mesh( pg, material );
+scene.add( pl );
+
+camera.position.z = 3;
 
 let pFrame = 0
 
@@ -57,9 +74,7 @@ const animation = ()=>{
 
   renderer.render(scene,camera);
 
-  cube.rotateX((9*dTime)*DEG2RAD)
-  cube.rotateY((18*dTime)*DEG2RAD)
-  cube.rotateZ((27*dTime)*DEG2RAD)
+  cg1.rotateZ((27*dTime)*DEG2RAD)
 
   requestAnimationFrame(animation)
 }

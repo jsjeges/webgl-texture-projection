@@ -7,13 +7,12 @@ import {
 
 const textureLoader = new TextureLoader();
 const t1 = textureLoader.load( 'cloud.png' );
-const t2 = textureLoader.load(  'lava.png' );
+const t2 = textureLoader.load(  'target.png' );
 
 const vertexShader=`
 varying vec2 vUv;
 
-void main()
-{
+void main() {
 
   vUv = uv;
   vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
