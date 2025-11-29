@@ -10,7 +10,7 @@ import {
   Group,
   Matrix4,
   AxesHelper,
-} from "./lib/three.module.min.js"
+} from "./lib/index.mjs"
 
 import {makeMaterial} from "./shader.mjs"
 
