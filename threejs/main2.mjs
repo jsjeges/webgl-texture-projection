@@ -29,6 +29,17 @@ import {
   MeshNormalMaterial,
 } from "./lib/index.mjs"
 
+const elem = (tag, parent, props)=>{
+  const e =document.createElement(tag);
+  if(parent) parent.appendChild(e)
+
+    for(const key in props) {
+      e[key] = props[key];
+    }
+
+  return e
+}
+
 const loader = new GLTFLoader();
 const textureLoader = new TextureLoader();
 
@@ -63,12 +74,10 @@ const decalMaterial = new MeshPhongMaterial( {
   wireframe: false
 } );
 
-
 function loadWidget() {
 
   const map = textureLoader.load( 'widgetDiffuse.png' );
   map.colorSpace = SRGBColorSpace;
-
 
   loader.load( 'widget.gltf', function ( gltf ) {
 
@@ -85,52 +94,70 @@ function loadWidget() {
   } );
 }
 
-
 const decals = [];
 let mouseHelper;
 const position = new Vector3();
 const orientation = new Euler();
 const size = new Vector3( 2, 2, 0 );
 
-const params = {
-  minScale: 3,
-  maxScale: 8,
-  rotate: false,
-  clear: function () {
-
-    removeDecals();
-
-  }
-};
+let canvasContainer;
 
 init();
 
 function init() {
 
-
-  const style = document.createElement("style");
+  const style = elem("style");
   document.head.appendChild(style);
 
-  style.sheet.insertRule(`
-  html,body,canvas {
-    padding:0;
-    margin:0;
+style.sheet.insertRule(`
+html,body,canvas {
+  padding:0;
+  margin:0;
+}
+`)
+
+style.sheet.insertRule(`
+
+  .layout {
+    overflow:hidden;
     width:100%;
-    height:100%;
-    background-color:black;
+    height:1024px;
+    display:grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr;
+
+    .listContainer {
+
+    }
+
+    .canvasContainer {
+      width:100%;
+      height:100%;
+      background-color:black;
+    }
   }
-  `)
+`)
 
   renderer = new WebGLRenderer( { antialias: true } );
   renderer.setPixelRatio( window.devicePixelRatio );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
 
-  document.body.appendChild( renderer.domElement );
+  const container = elem("div", document.body, {className:"layout"})
+
+
+const listElement = elem("ul", container, {className:"listContainer"});
+
+  for(let i =0; i < 10; i++) {
+    const li = elem("li", listElement);
+    li.innerText="hello" + i;
+  }
+
+   canvasContainer = elem("div", container, {className:"canvasContainer"})
+
+  canvasContainer.appendChild(renderer.domElement)
 
   scene = new Scene();
 
-  camera = new PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
+  camera = new PerspectiveCamera( 45, 1, 1, 1000 );
   camera.position.z = 120;
 
   const controls = new OrbitControls( camera, renderer.domElement );
@@ -161,8 +188,6 @@ function init() {
   mouseHelper.visible = false;
   scene.add( mouseHelper );
 
-  window.addEventListener( 'resize', onWindowResize );
-
   let moved = false;
 
   controls.addEventListener( 'change', function () {
@@ -178,14 +203,10 @@ function init() {
   } );
 
   window.addEventListener( 'pointerup', function ( event ) {
+    if ( moved === true ) return
 
-    if ( moved === false ) {
-
-      checkIntersection( event.clientX, event.clientY );
-
-      if ( intersection.intersects ) shoot();
-
-    }
+    checkIntersection( event );
+    if ( intersection.intersects ) place();
 
   } );
 
@@ -194,19 +215,21 @@ function init() {
   function onPointerMove( event ) {
 
     if ( event.isPrimary ) {
-
-      checkIntersection( event.clientX, event.clientY );
-
+      checkIntersection( event );
     }
-
   }
 
-  function checkIntersection( x, y ) {
-
+  function checkIntersection( event ) {
+    if(event.target !== renderer.domElement) return 
     if ( mesh === undefined ) return;
 
-    mouse.x = ( x / window.innerWidth ) * 2 - 1;
-    mouse.y = - ( y / window.innerHeight ) * 2 + 1;
+    const x =  event.offsetX;
+    const y = event.offsetY;
+
+    const {clientWidth:width, clientHeight:height} = renderer.domElement
+
+    mouse.x = ( x / width ) * 2 - 1;
+    mouse.y = - ( y / height ) * 2 + 1;
 
     raycaster.setFromCamera( mouse, camera );
     raycaster.intersectObject( mesh, false, intersects );
@@ -240,17 +263,18 @@ function init() {
       intersection.intersects = false;
     }
   }
+
+  renderer.setAnimationLoop( animate );
 }
 
-
-function shoot() {
+function place() {
 
   position.copy( intersection.point );
   orientation.copy( mouseHelper.rotation );
 
-  if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
+ // if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
 
-  const scale = params.minScale + Math.random() * ( params.maxScale - params.minScale );
+  const scale = 5;
   size.set( scale, scale, scale );
 
   const material = decalMaterial.clone();
@@ -274,21 +298,16 @@ function removeDecals() {
   } );
 
   decals.length = 0;
-
-}
-
-function onWindowResize() {
-
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
 
 function animate() {
+  renderer.domElement.style.display="none";
+  const {clientWidth:w,clientHeight:h} = canvasContainer
+  renderer.domElement.style.display="block";
 
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize( w,h );
   renderer.render( scene, camera );
-
 }
-
