@@ -53,6 +53,7 @@ const intersection = {
   point: new Vector3(),
   normal: new Vector3()
 };
+
 const mouse = new Vector2();
 const intersects = [];
 
@@ -95,12 +96,41 @@ function loadWidget() {
 }
 
 const decals = [];
+
+const removeDecal = (d)=>{
+  const ii = decals.indexOf(d);
+  decals.splice(ii,1);
+  mesh.remove(d);
+
+  rebuildList();
+}
+
+function removeDecals() {
+
+  decals.forEach( function ( d ) {
+    mesh.remove( d );
+  } );
+
+  decals.length = 0;
+}
+
 let mouseHelper;
 const position = new Vector3();
 const orientation = new Euler();
 const size = new Vector3( 2, 2, 0 );
 
 let canvasContainer;
+let listContainer;
+
+const rebuildList = ()=>{
+  while(listContainer.hasChildNodes()){
+    listContainer.removeChild(listContainer.firstChild)
+  }
+
+  for(const d of decals) {
+    const l = elem("li", listContainer, {innerText:"decal", onclick:()=>removeDecal(d)})
+  }
+}
 
 init();
 
@@ -110,9 +140,11 @@ function init() {
   document.head.appendChild(style);
 
 style.sheet.insertRule(`
-html,body,canvas {
+html,body {
   padding:0;
   margin:0;
+  height:100vh;
+  width:100vw;
 }
 `)
 
@@ -121,13 +153,13 @@ style.sheet.insertRule(`
   .layout {
     overflow:hidden;
     width:100%;
-    height:1024px;
+    height:100%;
     display:grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: 1fr;
 
     .listContainer {
-
+      width:256px;
     }
 
     .canvasContainer {
@@ -143,13 +175,8 @@ style.sheet.insertRule(`
 
   const container = elem("div", document.body, {className:"layout"})
 
+  listContainer = elem("ul", container, {className:"listContainer"});
 
-const listElement = elem("ul", container, {className:"listContainer"});
-
-  for(let i =0; i < 10; i++) {
-    const li = elem("li", listElement);
-    li.innerText="hello" + i;
-  }
 
    canvasContainer = elem("div", container, {className:"canvasContainer"})
 
@@ -272,35 +299,26 @@ function place() {
   position.copy( intersection.point );
   orientation.copy( mouseHelper.rotation );
 
- // if ( params.rotate ) orientation.z = Math.random() * 2 * Math.PI;
-
   const scale = 5;
   size.set( scale, scale, scale );
 
   const material = decalMaterial.clone();
   material.color.setHex( Math.random() * 0xffffff );
 
-  const m = new Mesh( new DecalGeometry( mesh, position, orientation, size ), material );
-  m.renderOrder = decals.length; // give decals a fixed render order
+  const decalMesh = new Mesh( new DecalGeometry( mesh, position, orientation, size ), material );
+  decalMesh.renderOrder = decals.length; // give decals a fixed render order
 
-  decals.push( m );
+  decals.push( decalMesh );
 
-  mesh.attach( m );
-
-}
-
-function removeDecals() {
-
-  decals.forEach( function ( d ) {
-
-    mesh.remove( d );
-
-  } );
-
-  decals.length = 0;
+  mesh.attach( decalMesh );
+  rebuildList();
 }
 
 function animate() {
+  // We want to set the canvas to be the dimensions of the canvasContainer.
+  // to prevent the canvas itself from modifying the dimensions of the parent element,
+    // we need to set it's display to none, so it wont affect the layout
+  // when we measure it
   renderer.domElement.style.display="none";
   const {clientWidth:w,clientHeight:h} = canvasContainer
   renderer.domElement.style.display="block";
