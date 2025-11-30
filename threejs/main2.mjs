@@ -29,6 +29,9 @@ import {
   MeshNormalMaterial,
 } from "./lib/index.mjs"
 
+
+const DEG2RAD = Math.PI/180;
+
 const elem = (tag, parent, props)=>{
   const e =document.createElement(tag);
   if(parent) parent.appendChild(e)
@@ -97,21 +100,12 @@ function loadWidget() {
 
 const decals = [];
 
-const removeDecal = (d)=>{
+const removeDecal = ({decalMesh:d})=>{
   const ii = decals.indexOf(d);
   decals.splice(ii,1);
   mesh.remove(d);
 
   rebuildList();
-}
-
-function removeDecals() {
-
-  decals.forEach( function ( d ) {
-    mesh.remove( d );
-  } );
-
-  decals.length = 0;
 }
 
 let mouseHelper;
@@ -233,7 +227,7 @@ style.sheet.insertRule(`
     if ( moved === true ) return
 
     checkIntersection( event );
-    if ( intersection.intersects ) place();
+    if ( intersection.intersects ) place(mesh);
 
   } );
 
@@ -294,8 +288,12 @@ style.sheet.insertRule(`
   renderer.setAnimationLoop( animate );
 }
 
-function place() {
+const makeDecalGeometry = (baseMesh, position, orientation, size)=>{
+  const decalGeometry = new DecalGeometry( baseMesh, position, orientation, size ) 
+  return decalGeometry;
+}
 
+function place(baseMesh) {
   position.copy( intersection.point );
   orientation.copy( mouseHelper.rotation );
 
@@ -305,16 +303,26 @@ function place() {
   const material = decalMaterial.clone();
   material.color.setHex( Math.random() * 0xffffff );
 
-  const decalMesh = new Mesh( new DecalGeometry( mesh, position, orientation, size ), material );
+  const newOrientation = orientation.clone();
+  const newSize = size.clone();
+  const newPosition = position.clone();
+
+  const decalGeometry = makeDecalGeometry( baseMesh, newPosition, newOrientation, newSize ) 
+  const decalMesh = new Mesh( decalGeometry, material );
+
   decalMesh.renderOrder = decals.length; // give decals a fixed render order
 
-  decals.push( decalMesh );
+  decals.push( {baseMesh, decalMesh, decalGeometry, position:newPosition, orientation:newOrientation, size:newSize} );
+  baseMesh.attach( decalMesh );
 
-  mesh.attach( decalMesh );
   rebuildList();
 }
 
+let pt = 0;
+
 function animate() {
+  const ct = performance.now();
+  const dt = (ct-pt) / 1000
   // We want to set the canvas to be the dimensions of the canvasContainer.
   // to prevent the canvas itself from modifying the dimensions of the parent element,
     // we need to set it's display to none, so it wont affect the layout
@@ -326,6 +334,20 @@ function animate() {
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
 
+  for(const d of decals) {
+    const {baseMesh, decalMesh, position, orientation, size} = d;
+    orientation.z += 30*DEG2RAD * dt 
+
+    position.x += Math.sin(ct/1000)*0.1;
+
+    const decalGeometry = makeDecalGeometry( baseMesh, position, orientation, size ) 
+
+    decalMesh.geometry.dispose();
+    decalMesh.geometry = decalGeometry;
+    d.decalGeometry = decalGeometry;
+  }
+
   renderer.setSize( w,h );
   renderer.render( scene, camera );
+  pt=ct;
 }
